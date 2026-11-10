@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missió a la Lluna: SQL</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --bg-dark: #0f1218;
+            --panel-bg: rgba(28, 33, 43, 0.85);
+            --text-main: #ffffff;
+            --text-muted: #8b95a5;
+            --purple-accent: #c4b5fd;
+            --purple-glow: rgba(196, 181, 253, 0.4);
+            --cyan-accent: #93c5fd;
+            --cyan-button: #b5d5eb;
+            --success: #34d399;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --altitude: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- FONDO ESTRELLADO CON ANIMACIÓN CONTINUA --- */
+        .stars {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #0b0e14;
+            background-image: 
+                radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.7), rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 90px 40px, rgba(255,255,255,0.9), rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.8), rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 230px 190px, #ffffff, rgba(0,0,0,0));
+            background-size: 280px 280px;
+            z-index: 0;
+            transition: transform 3.2s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateY(calc(var(--altitude) * 5px));
+            animation: spaceDrift 60s linear infinite alternate;
+        }
+        .stars::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(1px 1px at 50px 160px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.9), rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 200px 50px, rgba(255,255,255,0.6), rgba(0,0,0,0));
+            background-size: 320px 320px;
+            animation: twinkle 3s ease-in-out infinite alternate;
+        }
+        @keyframes twinkle { 
+            0% { opacity: 0.3; } 
+            50% { opacity: 0.8; }
+            100% { opacity: 0.4; } 
+        }
+        @keyframes spaceDrift {
+            0% { background-position: 0px 0px; }
+            100% { background-position: 50px 100px; }
+        }
+
+        /* --- CÁPSULA ESPACIAL CENTRAL CON ASTRONAUTA --- */
+        .rocket-vessel-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: floatGently 4s ease-in-out infinite alternate;
+        }
+        
+        .rocket-vessel-container.launching {
+            animation: vesselShake 0.1s infinite alternate;
+        }
+
+        .rocket-vessel-container.hyper-launch .rocket-svg-wrapper {
+            transform: scale(1.3) translateY(-15px);
+        }
+
+        .rocket-vessel-container.hyper-launch #rocket-fire {
+            transform: scaleY(2.5);
+        }
+
+        #rocket-fire {
+            transform-origin: 180px 125px; /* Centro del fuego en el SVG */
+            transition: transform 1s ease, opacity 0.3s;
+        }
+
+        @keyframes vesselShake {
+            0% { transform: translate(-50%, -51%) rotate(-0.5deg); }
+            100% { transform: translate(-50%, -49%) rotate(0.5deg); }
+        }
+
+        .rocket-svg-wrapper {
+            width: 220px;
+            height: 140px;
+            position: relative;
+            transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* SVG COHETE TIPO CÁPSULA FIEL A LA IMAGEN ORIGINAL */
+        .rocket-svg-graphic {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- LÍNEA DE HITO PURPURA --- */
+        .milestone-line-container {
+            position: absolute;
+            top: 66%;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            z-index: 6;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+        }
+        .milestone-line-container.active {
+            opacity: 1;
+        }
+        .milestone-line {
+            flex: 1;
+            height: 1px;
+            border-top: 2px dashed var(--purple-accent);
+            opacity: 0.7;
+        }
+        .milestone-badge {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: var(--purple-accent);
+            padding: 0 20px;
+            text-transform: uppercase;
+        }
+
+        /* --- OVERLAY DE HITO CENTRAL --- */
+        .milestone-text-overlay {
+            position: absolute;
+            top: 23%;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 7;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .milestone-text-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-10px);
+        }
+        .zone-title {
+            font-family: 'Anton', 'Impact', sans-serif;
+            font-size: 3.8rem;
+            letter-spacing: 3px;
+            color: var(--purple-accent);
+            text-transform: uppercase;
+            margin: 0;
+            text-shadow: 0 0 25px var(--purple-glow);
+        }
+        .milestone-subheading {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 10px 0 6px 0;
+        }
+        .milestone-stats {
+            font-size: 1.1rem;
+            color: var(--purple-accent);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        /* --- OVERLAY ESTADÍSTICAS FINALES --- */
+        #final-stats-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 100; background: rgba(11, 15, 25, 0.96); backdrop-filter: blur(12px);
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            padding-top: 50px; overflow-y: auto; color: #fff;
+            opacity: 0; pointer-events: none; transition: opacity 0.6s ease;
+        }
+        #final-stats-overlay.active { opacity: 1; pointer-events: auto; }
+        .stats-title { font-size: 5rem; font-weight: 900; color: #fff; margin: 0; font-family: 'Anton', sans-serif; line-height: 1;}
+        .stats-subtitle { color: var(--cyan-accent); font-size: 1.1rem; letter-spacing: 5px; margin-bottom: 30px; font-weight: bold;}
+        
+        .section-label { width: 100%; max-width: 780px; text-align: left; font-size: 0.8rem; color: rgba(255,255,255,0.4); border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 8px; margin-bottom: 20px; letter-spacing: 2px;}
+        
+        .flight-log-container { 
+            display: flex; justify-content: space-between; align-items: flex-end;
+            width: 100%; max-width: 780px; height: 140px; margin-bottom: 40px; 
+            padding: 0 20px 20px 20px;
+        }
+        .log-item { position: relative; height: 100%; width: 22px; display: flex; justify-content: center; }
+        .log-line { position: absolute; bottom: 0; width: 2px; background: rgba(255,255,255,0.15); }
+        .log-dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; transform: translateY(6px); }
+        .log-dot.success { background: var(--cyan-accent); box-shadow: 0 0 15px var(--cyan-accent); }
+        .log-dot.fail { background: var(--error); box-shadow: 0 0 15px var(--error); }
+        .log-num { position: absolute; bottom: -26px; font-size: 0.75rem; color: rgba(255,255,255,0.4); font-weight: bold;}
+
+        .skills-breakdown { width: 100%; max-width: 780px; text-align: left; margin-bottom: 30px;}
+        .skill-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.08); align-items: center; }
+
+        /* --- RESTAURACIÓN DE LA INTERFAZ PRINCIPAL (UI LAYER) --- */
+        #ui-layer { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 20; transition: opacity 0.5s ease; }
+        #ui-layer > * { pointer-events: auto; }
+        .hidden { opacity: 0 !important; pointer-events: none !important; }
+        .hidden > * { pointer-events: none !important; }
+
+        #hyper-focus-bg {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 3; opacity: 0;
+            pointer-events: none; transition: opacity 1.5s ease;
+        }
+        #hyper-focus-bg.active { opacity: 0.9; }
+
+        #earth-bg {
+            position: absolute;
+            bottom: -550px;
+            left: 50%;
+            width: 1000px; height: 1000px;
+            background: radial-gradient(circle at 50% 20%, #1e3a8a, #0f172a 70%);
+            border-radius: 50%;
+            box-shadow: 0 0 80px rgba(56, 189, 248, 0.2), inset 0 20px 50px rgba(255,255,255,0.1);
+            transform: translateX(-50%) translateY(calc(var(--altitude) * 15px));
+            transition: transform 3.2s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 1;
+        }
+
+        /* Cabecera */
+        header { position: absolute; top: 0; left: 0; right: 0; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .logo { font-size: 1.8rem; font-weight: 900; font-family: 'Anton', sans-serif; letter-spacing: 2px; }
+        .vol-btn { background: rgba(255,255,255,0.1); border: none; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        .score { font-size: 1.5rem; font-weight: 800; }
+        .score span { font-size: 1rem; color: var(--text-muted); }
+        .progress-dots { display: flex; gap: 8px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: background 0.3s; }
+        .dot.active { background: var(--text-main); }
+        .dot.completed { background: var(--text-muted); }
+
+        /* Contenedor de la Pregunta */
+        #quiz-container { display: flex; justify-content: center; margin-top: 80px; }
+        .question-box { background: var(--panel-bg); border-radius: 12px; padding: 25px 35px; width: 800px; max-width: 90%; border: 1px solid rgba(255,255,255,0.05); }
+        .q-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; letter-spacing: 1px; }
+        .chuleta-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); border-radius: 20px; padding: 4px 12px; cursor: pointer; font-size: 0.75rem; transition: all 0.2s; }
+        .chuleta-btn:hover { color: white; background: rgba(255,255,255,0.1); }
+        #question-text { font-family: 'Anton', sans-serif; font-size: 2.2rem; text-transform: uppercase; margin: 15px 0 0 0; text-align: center; letter-spacing: 1px; line-height: 1.1; }
+
+        /* Barra Inferior (Input) */
+        .input-bar-container { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        .input-bar { background: var(--panel-bg); border-radius: 24px; padding: 12px 15px; display: flex; align-items: center; width: 800px; max-width: 90%; border: 1px solid rgba(255,255,255,0.1); }
+        .lives-indicator { width: 36px; height: 36px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; margin-left: 10px; color: var(--text-muted); transition: color 0.3s, background 0.3s; }
+        .lives-indicator.danger { color: var(--error); background: rgba(248, 113, 113, 0.1); }
+        #sql-input { flex: 1; background: transparent; border: none; color: white; margin: 0 15px; font-family: monospace; resize: none; outline: none; height: 85px; padding-top: 5px; font-size: 1rem; line-height: 1.4; }
+        .submit-btn { background: var(--cyan-button); color: #000; border: none; padding: 12px 30px; border-radius: 30px; font-weight: 800; cursor: pointer; transition: transform 0.1s; align-self: center; }
+        .submit-btn:hover { transform: scale(1.05); }
+
+        /* Feedback Toast */
+        #feedback-toast { margin-bottom: 10px; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .show-toast { opacity: 1 !important; }
+        .toast-warning { background: rgba(251, 191, 36, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+        .toast-error { background: rgba(248, 113, 113, 0.2); color: var(--error); border: 1px solid var(--error); }
+
+        /* Altímetro */
+        .altimeter { position: absolute; right: 20px; top: 100px; bottom: 100px; width: 40px; border-right: 1px solid rgba(255,255,255,0.1); z-index: 5; }
+        .alt-label { position: absolute; right: 10px; font-size: 0.7rem; color: var(--text-muted); }
+        .alt-100m { top: 0; }
+        .alt-0m { bottom: 0; }
+        #tu-indicator { position: absolute; right: -10px; bottom: 0; background: var(--cyan-button); color: #000; font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 10px 0 0 10px; transition: bottom 3s cubic-bezier(0.25, 1, 0.5, 1); }
+
+        /* Botones de continuar (Overlays) */
+        .continue-btn-container { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 15px; opacity: 0; pointer-events: none; transition: opacity 0.6s; }
+        .continue-btn-container.active { opacity: 1; pointer-events: auto; }
+        .continue-btn { background: var(--cyan-button); color: #000; border: none; padding: 12px 30px; border-radius: 30px; font-weight: 800; cursor: pointer; letter-spacing: 1px; }
+        .fail-btn { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.2); padding: 12px 30px; border-radius: 30px; font-weight: 800; cursor: pointer; letter-spacing: 1px; transition: background 0.2s; }
+        .fail-btn:hover { background: rgba(255,255,255,0.1); }
+
+        /* MODALES */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 150;
+            justify-content: center; align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1c212b; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px; padding: 30px; width: 90%; max-width: 750px;
+            color: var(--text-main); position: relative;
+        }
+        .close-modal {
+            position: absolute; top: 15px; right: 20px; background: none; border: none;
+            color: var(--text-muted); font-size: 1.8rem; cursor: pointer;
+        }
+        .close-modal:hover { color: white; }
+
+        /* MODO EXAMEN BADGE */
+        .exam-badge {
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white; font-weight: 900; padding: 6px 16px; border-radius: 12px;
+            font-size: 0.8rem; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 15px;
+        }
+
+        .grade-box {
+            background: rgba(255, 255, 255, 0.04); border: 2px solid var(--purple-accent);
+            border-radius: 16px; padding: 18px 30px; margin: 15px 0 25px 0; text-align: center;
+        }
+        .grade-number { font-size: 3.5rem; font-weight: 900; color: var(--cyan-accent); line-height: 1; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <!-- FONDO ESTRELLADO CON DERIVA Y TWINKLE -->
+    <div class="stars"></div>
+    <div id="earth-bg"></div>
+    <div id="hyper-focus-bg"></div>
+
+    <!-- CÁPSULA Y ASTRONAUTA FLOTANDO EN EL CENTRO -->
+    <div class="rocket-vessel-container" id="vessel-container">
+        <div class="rocket-svg-wrapper">
+            <svg class="rocket-svg-graphic" viewBox="0 0 260 160" fill="none">
+                <!-- Cable tether -->
+                <path d="M 125 80 Q 90 40 45 65" stroke="rgba(255,255,255,0.7)" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+                <!-- Astronauta flotando a la izquierda -->
+                <g transform="translate(15, 40)">
+                    <circle cx="20" cy="20" r="13" fill="#ffffff"/>
+                    <rect x="13" y="14" width="14" height="9" rx="4" fill="#38bdf8"/>
+                    <rect x="9" y="33" width="22" height="26" rx="6" fill="#e2e8f0"/>
+                    <circle cx="20" cy="42" r="4" fill="#ef4444"/>
+                </g>
+                <!-- Antena cápsula -->
+                <line x1="180" y1="35" x2="180" y2="15" stroke="#94a3b8" stroke-width="3"/>
+                <circle cx="180" cy="12" r="4" fill="#38bdf8"/>
+                <!-- Cuerpo principal cápsula (vertical u horizontal proporcional) -->
+                <rect x="155" y="35" width="50" height="90" rx="20" fill="#ffffff"/>
+                <rect x="155" y="70" width="50" height="28" fill="#1e293b"/>
+                <circle cx="180" cy="84" r="8" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
+                <rect x="175" y="108" width="10" height="6" rx="2" fill="#fbbf24"/>
+                <!-- Patas cápsula -->
+                <path d="M 160 125 L 148 148 M 200 125 L 212 148" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+                <!-- Fuego cohete propulsor -->
+                <g id="rocket-fire" opacity="0" style="transition: opacity 0.3s">
+                    <path d="M 165 125 Q 180 165 195 125" fill="#f97316"/>
+                    <path d="M 172 125 Q 180 150 188 125" fill="#facc15"/>
+                </g>
+            </svg>
+        </div>
+    </div>
+
+    <!-- ALTÍMETRO DERECHO -->
+    <div class="altimeter">
+        <span class="alt-label alt-100m">100 m</span>
+        <span class="alt-label alt-0m">0 m</span>
+        <div id="tu-indicator">TÚ</div>
+    </div>
+
+    <!-- OVERLAY CENTRAL DE HITO DE ALTURA -->
+    <div class="milestone-text-overlay" id="milestone-overlay">
+        <h1 class="zone-title" id="zone-title-text">BORDE EXTERIOR</h1>
+        <div class="milestone-subheading" id="milestone-subheading-text">Blancanieves</div>
+        <div class="milestone-stats" id="milestone-stats-text">+85 puntos · 85 m més amunt</div>
+        <div class="milestone-quote" id="milestone-quote-text">Gairebé ningú arriba fins aquí.</div>
+    </div>
+
+    <!-- LÍNEA DISCONTINUA PURPURA -->
+    <div class="milestone-line-container" id="milestone-line-container">
+        <div class="milestone-line"></div>
+        <div class="milestone-badge" id="milestone-badge-text">BORDE EXTERIOR · 85</div>
+        <div class="milestone-line"></div>
+    </div>
+
+    <!-- BOTONES DE ACCIÓN "SEGUIR SUBIENDO" Y "VER MI FALLO" -->
+    <div class="continue-btn-container" id="continue-btn-container">
+        <button class="fail-btn" id="ver-fallo-btn" style="display: none;" onclick="toggleFallosModal(true)">VER MI FALLO</button>
+        <button class="continue-btn" onclick="nextQuestionAfterFlight()">SEGUIR SUBIENDO</button>
+    </div>
+
+    <!-- CAPA INTERACTIVA DE PREGUNTAS -->
+    <div id="ui-layer">
+        <header>
+            <div class="logo">
+                MOON <button class="vol-btn">🔊</button>
+            </div>
+            <div class="progress-dots" id="progress-dots"></div>
+            <div class="score" id="total-score">0 <span>m</span></div>
+        </header>
+
+        <div id="quiz-container">
+            <div class="question-box" id="question-box">
+                <div class="q-header">
+                    <span id="level-display">PREGUNTA 1 DE 10</span>
+                    <button class="chuleta-btn" onclick="toggleModal(true)">📚 Chuleta</button>
+                </div>
+                <h2 id="question-text">Carregant la missió...</h2>
+            </div>
+        </div>
+
+        <div class="input-bar-container">
+            <div id="feedback-toast"></div>
+            <div class="input-bar">
+                <div class="lives-indicator" id="lives-circle">3</div>
+                <textarea id="sql-input" placeholder="Escriu una resposta en SQL..."></textarea>
+                <button class="submit-btn" id="submit-btn" onclick="checkAnswer()">Lanzar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESTADÍSTICAS FINALES (Aparece tras cada Nivel o Examen) -->
+    <div id="final-stats-overlay">
+        <div id="exam-tag-header" style="display:none;" class="exam-badge">MODO EXAMEN EVALUABLE</div>
+        <h1 class="stats-title" id="final-alt-display">100<span style="font-size: 2.5rem; color: var(--cyan-accent); margin-left:10px;">m</span></h1>
+        <div class="stats-subtitle" id="stats-subtitle-text">ANÀLISI DE NIVELL COMPLETAT</div>
+
+        <div id="grade-container" class="grade-box" style="display:none;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold; letter-spacing: 2px;">NOTA FINAL DE L'EXAMEN</div>
+            <div class="grade-number" id="grade-val">9.5 / 10</div>
+            <div id="grade-verdict" style="font-weight: 700; color: var(--success); margin-top: 8px;">EXCEL·LENT - APTE PER A LA MISSIÓ</div>
+        </div>
+
+        <div class="section-label">FLIGHT LOG &nbsp;&nbsp;|&nbsp;&nbsp; CYAN = ÈXIT &nbsp;&nbsp;|&nbsp;&nbsp; VERMELL = FALL / PARCIAL</div>
+        
+        <div class="flight-log-container" id="flight-log-content">
+            <!-- JS injects timeline -->
+        </div>
+
+        <div class="section-label">SYSTEM DIAGNOSTICS &nbsp;&nbsp;|&nbsp;&nbsp; THE BEARING</div>
+
+        <div class="skills-breakdown" id="skills-container">
+            <!-- JS injects breakdown -->
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-top: 15px; margin-bottom: 40px; flex-wrap: wrap; justify-content: center;" id="action-buttons-group">
+            <button class="fail-btn" onclick="retryCurrentLevel()">REPETIR NIVELL</button>
+            <button class="fail-btn" id="retry-failed-btn" onclick="retryFailedQuestions()" style="border-color: var(--warning); color: var(--warning);">REPETIR FALLIDES</button>
+            <button class="continue-btn" id="next-level-btn" onclick="goToNextLevel()">SEGÜENT NIVELL 🚀</button>
+            <button class="continue-btn" id="start-exam-btn" onclick="startExamMode()" style="background: linear-gradient(135deg, #a855f7, #38bdf8); color: #000; border: none; display: none;">🎓 FER EXAMEN FINAL</button>
+        </div>
+    </div>
+
+    <!-- MODAL CHULETA -->
+    <div id="chuleta-modal" class="modal">
+        <div class="modal-content" style="max-width: 750px; max-height: 85vh; overflow-y: auto;">
+            <button class="close-modal" onclick="toggleModal(false)">&times;</button>
+            <h3 style="margin-top:0; color:var(--cyan-accent); font-size:1.4rem;">📖 Teoría SQL (MP0484)</h3>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                <button class="tab-btn active" onclick="switchTab('simples')" style="background:none; border:none; color:var(--cyan-accent); border-bottom: 2px solid var(--cyan-accent); font-weight:600; cursor:pointer; padding:10px; font-size:1rem;">Consultes Simples</button>
+                <button class="tab-btn" onclick="switchTab('complexes')" style="background:none; border:none; color:rgba(255,255,255,0.5); font-weight:600; cursor:pointer; padding:10px; font-size:1rem;">Consultes Complexes</button>
+                <button class="tab-btn" onclick="switchTab('taules')" style="background:none; border:none; color:rgba(255,255,255,0.5); font-weight:600; cursor:pointer; padding:10px; font-size:1rem;">Taules HR</button>
+            </div>
+
+            <div id="tab-simples" class="tab-content" style="display:block;">
+                <h4 style="color:var(--text-main);">SINTAXI BÀSICA SELECT</h4>
+                <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; color: var(--success); font-family: monospace;">SELECT [DISTINCT] columna | expressió [alies]
+FROM taula
+[WHERE condició]
+[ORDER BY columna | posició | alies [ASC | DESC]];</pre>
+                <h4 style="color:var(--text-main);">OPERADORS DE COMPARACIÓ I LÒGICS</h4>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:0.9rem;">
+                    <tr><th style="padding:8px; border:1px solid rgba(255,255,255,0.1); text-align:left; background:rgba(147,197,253,0.1); color:var(--cyan-accent);">Operador</th><th style="padding:8px; border:1px solid rgba(255,255,255,0.1); text-align:left; background:rgba(147,197,253,0.1); color:var(--cyan-accent);">Significat</th></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">BETWEEN a AND b</td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">Rang inclusiu.</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">IN (v1, v2, ...)</td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">Llista de valors permesos.</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">LIKE 'patró'</td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">% = qualsevol seqüència, _ = un sol caràcter.</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">IS NULL / IS NOT NULL</td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">Per comprovar si hi ha dades mancants.</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">NOT, AND, OR</td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">Operadors lògics (Ordre: 1º NOT, 2º AND, 3º OR).</td></tr>
+                </table>
+            </div>
+
+            <div id="tab-complexes" class="tab-content" style="display:none; color:var(--text-muted); line-height: 1.6;">
+                <h4 style="color:var(--text-main);">JOIN I RELACIONS</h4>
+                <p><b>NATURAL JOIN:</b> Uneix taules usant totes les columnes amb el mateix nom.<br>
+                <b>JOIN ... ON:</b> Especifica les columnes per fer l'enllaç.<br>
+                <b>LEFT/RIGHT JOIN:</b> Manté registres de la taula principal.<br>
+                <b>SELF-JOIN:</b> Permet enllaçar una taula amb ella mateixa (ex. empleats amb els seus mànagers).</p>
+            </div>
+
+            <div id="tab-taules" class="tab-content" style="display:none;">
+                <h4 style="color:var(--text-main);">ESQUEMA ORACLE HR (AMB JOB_GRADES)</h4>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:0.9rem;">
+                    <tr><th style="padding:8px; border:1px solid rgba(255,255,255,0.1); text-align:left; background:rgba(147,197,253,0.1); color:var(--cyan-accent);">Taula</th><th style="padding:8px; border:1px solid rgba(255,255,255,0.1); text-align:left; background:rgba(147,197,253,0.1); color:var(--cyan-accent);">Columnes Principals</th></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);"><b>EMPLOYEES</b></td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">employee_id, first_name, last_name, email, hire_date, salary, job_id, manager_id, department_id</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);"><b>DEPARTMENTS</b></td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">department_id, department_name, manager_id, location_id</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);"><b>LOCATIONS</b></td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">location_id, street_address, city, state_province, country_id</td></tr>
+                    <tr><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);"><b>JOB_GRADES</b></td><td style="padding:8px; border:1px solid rgba(255,255,255,0.1);">grade (PK, CHAR(1)), lowest_sal (NUMBER(8,2)), highest_sal (NUMBER(8,2)) [Graus A-F]</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FALLO -->
+    <div id="fallo-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="toggleFallosModal(false)">&times;</button>
+            <h3 style="margin-top:0; color:var(--purple-accent); font-size:1.4rem;">🔍 ANÀLISI DEL TEU FALL</h3>
+            <p style="color:var(--text-muted);">Aquesta és la sintaxi SQL correcta per resoldre l'exercici:</p>
+            <pre id="fallo-sql-code" style="background: #0f1218; padding: 15px; border-radius: 8px; border-left: 4px solid var(--success); color: var(--success); font-family: monospace; white-space: pre-wrap; margin: 15px 0;"></pre>
+            <div>
+                <span style="font-size: 0.8rem; font-weight:700; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Desglossament pas a pas:</span>
+                <div id="fallo-breakdown" style="font-size: 0.95rem; line-height: 1.6; color: var(--text-main); margin-top: 8px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.style.color = 'rgba(255,255,255,0.5)';
+                btn.style.borderBottom = 'none';
+            });
+            event.target.style.color = 'var(--cyan-accent)';
+            event.target.style.borderBottom = '2px solid var(--cyan-accent)';
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+            document.getElementById('tab-' + tabId).style.display = 'block';
+        }
+
+        /* BANCO COMPLETO DE PREGUNTAS REALES */
+        const fullDatabase = [
+            // --- SUBCONSULTAS ---
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 1: Mostra el cognom i la data de contractació de tots els empleats del mateix departament que l'empleat indicat per l'usuari (&empleat), excepte ell mateix.",
+                title: "SUBCONSULTA DEPARTAMENT",
+                keywords: ["select", "last_name", "hire_date", "from", "employees", "where", "department_id", "=", "&", "!="],
+                correct: "SELECT last_name, hire_date\nFROM employees\nWHERE department_id = (\n  SELECT department_id FROM employees WHERE last_name = '&empleat'\n)\nAND last_name != '&empleat';",
+                explanation: "<ul><li><b>WHERE department_id = (...)</b>: Obté el departament de l'empleat passat per variable.</li><li><b>AND last_name != '&empleat'</b>: Exclou el propi empleat de la llista.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 2: Mostra el número d'empleat, cognom i salari de tots els empleats que guanyen més del salari mitjà. Ordena per salari ascendent.",
+                title: "SUBCONSULTA MITJANA",
+                keywords: ["select", "employee_id", "last_name", "salary", "from", "employees", "where", "salary", ">", "select", "avg", "order by"],
+                correct: "SELECT employee_id, last_name, salary\nFROM employees\nWHERE salary > (\n  SELECT AVG(salary) FROM employees\n)\nORDER BY salary ASC;",
+                explanation: "<ul><li><b>WHERE salary > (SELECT AVG(salary)...)</b>: Compara amb la mitjana calculada.</li><li><b>ORDER BY salary ASC</b>: Ordena de menor a major sou.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 3: Mostra el número d'empleat i cognom dels empleats que treballen en un departament amb algun empleat amb la lletra 'u' al cognom.",
+                title: "SUBCONSULTA AMB LIKE",
+                keywords: ["select", "employee_id", "last_name", "where", "department_id", "in", "select", "like", "'%u%'"],
+                correct: "SELECT employee_id, last_name\nFROM employees\nWHERE department_id IN (\n  SELECT DISTINCT department_id FROM employees WHERE LOWER(last_name) LIKE '%u%'\n);",
+                explanation: "<ul><li><b>department_id IN (...)</b>: Obté els departaments que contenen alguna 'u'.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 4: Mostra cognom, número de departament i JOB_ID de tots els empleats el departament dels quals es trobi a la ubicació demanada per l'usuari (&ubicacio).",
+                title: "SUBCONSULTA UBICACIÓ",
+                keywords: ["select", "last_name", "department_id", "job_id", "where", "department_id", "in", "select", "location_id", "="],
+                correct: "SELECT last_name, department_id, job_id\nFROM employees\nWHERE department_id IN (\n  SELECT department_id FROM departments WHERE location_id = &ubicacio\n);",
+                explanation: "<ul><li><b>WHERE location_id = &ubicacio</b>: Subconsulta per demanar la ubicació a l'usuari.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 5: Mostra el cognom i salari de tots els empleats que treballen sota les ordres de Steven King.",
+                title: "SUBCONSULTA MANAGER",
+                keywords: ["select", "last_name", "salary", "where", "manager_id", "in", "select", "employee_id", "'king'"],
+                correct: "SELECT last_name, salary\nFROM employees\nWHERE manager_id IN (\n  SELECT employee_id FROM employees WHERE first_name = 'Steven' AND last_name = 'King'\n);",
+                explanation: "<ul><li><b>manager_id IN (SELECT employee_id...)</b>: Cerca els subordinats directes de Steven King.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 6: Mostra el número de departament, cognom i JOB_ID de cada empleat del departament 'Executive'.",
+                title: "SUBCONSULTA EXECUTIVE",
+                keywords: ["select", "department_id", "last_name", "job_id", "where", "department_id", "=", "select", "'executive'"],
+                correct: "SELECT department_id, last_name, job_id\nFROM employees\nWHERE department_id = (\n  SELECT department_id FROM departments WHERE department_name = 'Executive'\n);",
+                explanation: "<ul><li>Subconsulta escalar sobre DEPARTMENTS per obtenir l'ID d'Executive.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 7: Mostra tots els empleats amb salari superior al de QUALSEVOL empleat del departament 60 (fes servir ANY).",
+                title: "SUBCONSULTA ANY",
+                keywords: ["select", "last_name", "salary", "where", "salary", ">", "any", "select", "60"],
+                correct: "SELECT last_name, salary\nFROM employees\nWHERE salary > ANY (\n  SELECT salary FROM employees WHERE department_id = 60\n);",
+                explanation: "<ul><li><b>> ANY (...)</b>: Avalua ser major que el mínim del conjunt del dept 60.</li></ul>"
+            },
+            {
+                topic: "Subconsultes",
+                text: "Subconsultes Ex 8: Mostra número d'empleat, cognom i salari dels que guanyen MÉS del salari mig I treballen en un departament amb algun empleat amb la lletra 'u' al cognom.",
+                title: "SUBCONSULTA COMPLEXA",
+                keywords: ["select", "employee_id", "last_name", "salary", "where", "salary", ">", "select", "avg", "and", "department_id", "in"],
+                correct: "SELECT employee_id, last_name, salary\nFROM employees\nWHERE salary > (SELECT AVG(salary) FROM employees)\nAND department_id IN (SELECT department_id FROM employees WHERE LOWER(last_name) LIKE '%u%');",
+                explanation: "<ul><li>Combina dues condicions al WHERE amb subconsultes.</li></ul>"
+            },
+
+            // --- UNIONS ENTRE TAULES (JOINs) ---
+            {
+                topic: "JOINs",
+                text: "Unions Ex 1: Genera les adreces dels departaments usant LOCATIONS i COUNTRIES. Mostra location_id, street_address, city, state_province i country_name amb NATURAL JOIN.",
+                title: "NATURAL JOIN LOCATIONS",
+                keywords: ["select", "location_id", "street_address", "city", "state_province", "country_name", "from", "locations", "natural join", "countries"],
+                correct: "SELECT location_id, street_address, city, state_province, country_name\nFROM locations\nNATURAL JOIN countries;",
+                explanation: "<ul><li><b>NATURAL JOIN countries</b>: Creua per country_id automàticament.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 2: Mostra el cognom (last_name), número (department_id) i nom del departament (department_name) de tots els empleats.",
+                title: "JOIN DEPARTMENTS",
+                keywords: ["select", "last_name", "department_id", "department_name", "from", "employees", "join", "departments", "on"],
+                correct: "SELECT e.last_name, e.department_id, d.department_name\nFROM employees e\nJOIN departments d ON e.department_id = d.department_id;",
+                explanation: "<ul><li>JOIN clàssic per department_id.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 3: Mostra cognom, càrrec (job_id), número i nom de departament de tots els empleats que treballen a Toronto.",
+                title: "JOIN TORONTO",
+                keywords: ["select", "last_name", "job_id", "department_id", "department_name", "join", "locations", "where", "'toronto'"],
+                correct: "SELECT e.last_name, e.job_id, e.department_id, d.department_name\nFROM employees e\nJOIN departments d ON e.department_id = d.department_id\nJOIN locations l ON d.location_id = l.location_id\nWHERE LOWER(l.city) = 'toronto';",
+                explanation: "<ul><li>Múltiples JOINs per arribar a la ciutat de la taula LOCATIONS.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 4: Mostra cognom i número d'empleat juntament amb el cognom i número del seu cap. Etiqueta com Employee, Emp#, Manager, Mgr#.",
+                title: "SELF JOIN MANAGERS",
+                keywords: ["select", "last_name", "employee_id", "manager_id", "join", "employees", "on"],
+                correct: 'SELECT e.last_name "Employee", e.employee_id "Emp#", m.last_name "Manager", m.employee_id "Mgr#"\nFROM employees e\nJOIN employees m ON e.manager_id = m.employee_id;',
+                explanation: "<ul><li>Self-join relacionant empleat amb manager.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 5: Modifica la consulta anterior per mostrar també King (que no té cap). Ordena per número d'empleat.",
+                title: "LEFT JOIN KING",
+                keywords: ["select", "left join", "employees", "on", "order by", "employee_id"],
+                correct: 'SELECT e.last_name "Employee", e.employee_id "Emp#", m.last_name "Manager", m.employee_id "Mgr#"\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.employee_id\nORDER BY e.employee_id;',
+                explanation: "<ul><li><b>LEFT JOIN</b> inclou King tot i que el seu manager sigui NULL.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 6: Mostra el departament, cognom de l'empleat i cognom del company (empleat del mateix departament, diferent d'ell mateix). Ordena per departament, empleat i company.",
+                title: "SELF JOIN COMPANYS",
+                keywords: ["select", "department_id", "last_name", "join", "employees", "on", "!=", "order by"],
+                correct: "SELECT e.department_id, e.last_name AS empleat, c.last_name AS company\nFROM employees e\nJOIN employees c ON e.department_id = c.department_id AND e.employee_id != c.employee_id\nORDER BY e.department_id, empleat, company;",
+                explanation: "<ul><li><b>e.employee_id != c.employee_id</b> evita parelles amb ell mateix.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 7: Mostra cognom, càrrec, nom de departament, salari i grau salarial (grade) de tots els empleats creuant amb JOB_GRADES.",
+                title: "NON-EQUIJOIN JOB_GRADES",
+                keywords: ["select", "last_name", "job_id", "department_name", "salary", "grade", "join", "job_grades", "between", "lowest_sal", "highest_sal"],
+                correct: "SELECT e.last_name, e.job_id, d.department_name, e.salary, j.grade\nFROM employees e\nJOIN departments d ON e.department_id = d.department_id\nJOIN job_grades j ON e.salary BETWEEN j.lowest_sal AND j.highest_sal;",
+                explanation: "<ul><li>Comprova que el salari estigui entre <b>lowest_sal</b> i <b>highest_sal</b>.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 8: Mostra el cognom i data de contractació (hire_date) de tots els empleats contractats DESPRÉS de Davies.",
+                title: "JOIN / SUBQUERY DAVIES",
+                keywords: ["select", "last_name", "hire_date", "where", "hire_date", ">", "select", "'davies'"],
+                correct: "SELECT last_name, hire_date\nFROM employees\nWHERE hire_date > (\n  SELECT hire_date FROM employees WHERE last_name = 'Davies'\n);",
+                explanation: "<ul><li>Compara dates amb la subconsulta de Davies.</li></ul>"
+            },
+            {
+                topic: "JOINs",
+                text: "Unions Ex 9: Mostra el cognom i data dels empleats contractats ABANS que el seu cap, junt amb el cognom i data del cap.",
+                title: "SELF JOIN ABANS DEL CAP",
+                keywords: ["select", "last_name", "hire_date", "join", "employees", "on", "where", "<"],
+                correct: "SELECT e.last_name, e.hire_date, m.last_name, m.hire_date\nFROM employees e\nJOIN employees m ON e.manager_id = m.employee_id\nWHERE e.hire_date < m.hire_date;",
+                explanation: "<ul><li><b>e.hire_date < m.hire_date</b> filtra empleats més antics que el seu cap.</li></ul>"
+            },
+
+            // --- FUNCIONS DE GRUP ---
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 1: Les funcions de grup treballen sobre diverses files per produir un resultat per grup. Vertader o Fals?",
+                title: "TEORIA FUNCIONS GRUP 1",
+                keywords: ["vertader", "v", "true"],
+                correct: "Vertader",
+                explanation: "<ul><li><b>Vertader</b>: Processen múltiples files i en retornen 1.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 2: Les funcions de grup inclouen els valors nuls als càlculs. Vertader o Fals?",
+                title: "TEORIA FUNCIONS GRUP 2",
+                keywords: ["fals", "f", "false"],
+                correct: "Fals",
+                explanation: "<ul><li><b>Fals</b>: Els valors NULL s'ignoren excepte a COUNT(*).</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 3: La clàusula WHERE restringeix les files abans d'incloure-les en un càlcul de grup. Vertader o Fals?",
+                title: "TEORIA FUNCIONS GRUP 3",
+                keywords: ["vertader", "v", "true"],
+                correct: "Vertader",
+                explanation: "<ul><li><b>Vertader</b>: WHERE s'executa abans de fer l'agrupació.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 4: Troba el valor màxim, mínim, suma i mitjana del salari de tots els empleats. Etiqueta Maximum, Minimum, Sum i Average. Arrodoneix al nombre enter més proper.",
+                title: "AGREGACIONS SALARI",
+                keywords: ["select", "round", "max", "min", "sum", "avg", "salary"],
+                correct: 'SELECT ROUND(MAX(salary)) "Maximum", ROUND(MIN(salary)) "Minimum", ROUND(SUM(salary)) "Sum", ROUND(AVG(salary)) "Average"\nFROM employees;',
+                explanation: "<ul><li>Agregacions MAX, MIN, SUM, AVG amb ROUND.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 5: Modifica la consulta anterior per mostrar el valor mínim, màxim, suma i mitjana del salari per a cada tipus de càrrec (JOB_ID).",
+                title: "AGREGACIONS PER JOB_ID",
+                keywords: ["select", "job_id", "max", "min", "sum", "avg", "group by"],
+                correct: 'SELECT job_id, ROUND(MAX(salary)) "Maximum", ROUND(MIN(salary)) "Minimum", ROUND(SUM(salary)) "Sum", ROUND(AVG(salary)) "Average"\nFROM employees\nGROUP BY job_id;',
+                explanation: "<ul><li><b>GROUP BY job_id</b> desglossa el càlcul per cada lloc de treball.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 6: Escriu una consulta per mostrar el nombre de persones amb el mateix càrrec. Generalitza-la per demanar el càrrec a l'usuari (&carrec).",
+                title: "COUNT CARREC",
+                keywords: ["select", "job_id", "count", "from", "employees", "where", "job_id", "=", "&"],
+                correct: "SELECT job_id, COUNT(*)\nFROM employees\nWHERE job_id = '&carrec'\nGROUP BY job_id;",
+                explanation: "<ul><li>Demana el càrrec amb <b>&carrec</b> i agrupa.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 7: Determina el nombre de caps (managers) sense llistar-los. Etiqueta la columna 'Number of Managers'. Indicació: utilitza MANAGER_ID.",
+                title: "COUNT DISTINCT MANAGERS",
+                keywords: ["select", "count", "distinct", "manager_id", "from", "employees"],
+                correct: 'SELECT COUNT(DISTINCT manager_id) "Number of Managers"\nFROM employees;',
+                explanation: "<ul><li><b>COUNT(DISTINCT manager_id)</b> compta valors únics sense nuls.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 8: Troba la diferència entre el salari màxim i el mínim de l'empresa. Etiqueta la columna DIFFERENCE.",
+                title: "DIFERÈNCIA SALARIAL",
+                keywords: ["select", "max", "salary", "-", "min", "salary", "as", "difference"],
+                correct: 'SELECT MAX(salary) - MIN(salary) "DIFFERENCE"\nFROM employees;',
+                explanation: "<ul><li>Resta de funcions de grup <b>MAX(salary) - MIN(salary)</b>.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 9: Mostra el número de cap i el salari mínim dels seus empleats. Exclou els sense cap. Exclou grups amb salari mínim <= 6000. Ordena descendent per salari.",
+                title: "HAVING MIN SALARY",
+                keywords: ["select", "manager_id", "min", "salary", "where", "is not null", "group by", "having", ">", "6000", "order by"],
+                correct: "SELECT manager_id, MIN(salary)\nFROM employees\nWHERE manager_id IS NOT NULL\nGROUP BY manager_id\nHAVING MIN(salary) > 6000\nORDER BY MIN(salary) DESC;",
+                explanation: "<ul><li><b>HAVING MIN(salary) > 6000</b> filtra els grups resumits.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 10: Mostra el nombre total d'empleats i el nombre contractat el 2005, 2006, 2007 i 2008 usant SUM i DECODE.",
+                title: "PIVOT CONTRACTES",
+                keywords: ["select", "count", "sum", "decode", "to_char", "hire_date", "2005"],
+                correct: "SELECT COUNT(*) \"Total\",\n  SUM(DECODE(TO_CHAR(hire_date,'YYYY'), '2005', 1, 0)) \"2005\",\n  SUM(DECODE(TO_CHAR(hire_date,'YYYY'), '2006', 1, 0)) \"2006\",\n  SUM(DECODE(TO_CHAR(hire_date,'YYYY'), '2007', 1, 0)) \"2007\",\n  SUM(DECODE(TO_CHAR(hire_date,'YYYY'), '2008', 1, 0)) \"2008\"\nFROM employees;",
+                explanation: "<ul><li>Matriu condicional sumant 1 quan es compleix l'any.</li></ul>"
+            },
+            {
+                topic: "Funcions de Grup",
+                text: "Funcions de Grup Ex 11: Matriu per mostrar el càrrec (JOB_ID), salari per departament (20, 50, 80, 90) i salari total del càrrec.",
+                title: "MATRIU SALARI DEPT",
+                keywords: ["select", "job_id", "sum", "decode", "department_id", "20", "50", "80", "90", "group by"],
+                correct: "SELECT job_id,\n  SUM(DECODE(department_id, 20, salary, 0)) \"Dept 20\",\n  SUM(DECODE(department_id, 50, salary, 0)) \"Dept 50\",\n  SUM(DECODE(department_id, 80, salary, 0)) \"Dept 80\",\n  SUM(DECODE(department_id, 90, salary, 0)) \"Dept 90\",\n  SUM(salary) \"Total\"\nFROM employees\nGROUP BY job_id;",
+                explanation: "<ul><li>Consulta matricial assignant salaris per columna.</li></ul>"
+            },
+
+            // --- OPERADORES DE CONJUNTO ---
+            {
+                topic: "Operadors de Conjunt",
+                text: "Operadors Ex 1: Mostra els ID de departament que NO contenen el càrrec 'ST_CLERK' usant operadors de definició (MINUS).",
+                title: "OPERADOR MINUS DEPT",
+                keywords: ["select", "department_id", "from", "departments", "minus", "select", "job_id", "'st_clerk'"],
+                correct: "SELECT department_id FROM departments\nMINUS\nSELECT department_id FROM employees WHERE job_id = 'ST_CLERK';",
+                explanation: "<ul><li><b>MINUS</b> resta els departaments amb ST_CLERK de la llista general.</li></ul>"
+            },
+            {
+                topic: "Operadors de Conjunt",
+                text: "Operadors Ex 2: Mostra els països (country_id i country_name) que no tenen cap departament (usant MINUS).",
+                title: "MINUS PAÏSOS SENSE DEPT",
+                keywords: ["select", "country_id", "country_name", "from", "countries", "minus", "locations", "departments"],
+                correct: "SELECT country_id, country_name FROM countries\nMINUS\nSELECT c.country_id, c.country_name FROM countries c JOIN locations l ON c.country_id = l.country_id JOIN departments d ON l.location_id = d.location_id;",
+                explanation: "<ul><li>Resta els països amb departaments del total de països.</li></ul>"
+            },
+            {
+                topic: "Operadors de Conjunt",
+                text: "Operadors Ex 3: Crea una llista de càrrecs pels departaments 10, 50 i 20 en aquest ordre (JOB_ID i DEPARTMENT_ID) usant UNION ALL.",
+                title: "UNION ALL DEPARTAMENTS",
+                keywords: ["select", "job_id", "department_id", "union all", "10", "50", "20"],
+                correct: "SELECT job_id, department_id FROM employees WHERE department_id = 10\nUNION ALL\nSELECT job_id, department_id FROM employees WHERE department_id = 50\nUNION ALL\nSELECT job_id, department_id FROM employees WHERE department_id = 20;",
+                explanation: "<ul><li><b>UNION ALL</b> manté l'ordre especificat i els duplicats.</li></ul>"
+            },
+            {
+                topic: "Operadors de Conjunt",
+                text: "Operadors Ex 4: Mostra els empleats que actualment tenen el mateix càrrec que quan van ser contractats (creua EMPLOYEES i JOB_HISTORY amb INTERSECT).",
+                title: "INTERSECT HISTÒRIC",
+                keywords: ["select", "employee_id", "job_id", "from", "employees", "intersect", "job_history"],
+                correct: "SELECT employee_id, job_id FROM employees\nINTERSECT\nSELECT employee_id, job_id FROM job_history;",
+                explanation: "<ul><li><b>INTERSECT</b> troba coincidències de (employee_id, job_id).</li></ul>"
+            },
+            {
+                topic: "Operadors de Conjunt",
+                text: "Operadors Ex 5: Crea un informe amb: cognom, ID dept i nom dept (NULL) dels empleats + nom (NULL), ID dept i nom dept de tots els departaments usant UNION.",
+                title: "UNION COMPATIBILITAT DE TIPUS",
+                keywords: ["select", "last_name", "department_id", "to_char", "null", "union", "departments"],
+                correct: "SELECT last_name, department_id, TO_CHAR(NULL) department_name FROM employees\nUNION\nSELECT TO_CHAR(NULL), department_id, department_name FROM departments;",
+                explanation: "<ul><li>Utilitza <b>TO_CHAR(NULL)</b> per quadrar el número i tipus de dades.</li></ul>"
+            }
+        ];
+
+        let levelSize = 10;
+        let currentLevel = 1;
+        let totalLevels = Math.ceil(fullDatabase.length / levelSize);
+        let questions = [];
+        let currentIndex = 0;
+        let lives = 3;
+        let baseProgress = 0;
+        let pendingGain = 0;
+        let userStats = [];
+        let isExamMode = false;
+        let levelFailedStats = [];
+
+        const tuIndicator = document.getElementById('tu-indicator');
+        const btn = document.getElementById('submit-btn');
+        const inputField = document.getElementById('sql-input');
+        const livesCircle = document.getElementById('lives-circle');
+        const toast = document.getElementById('feedback-toast');
+        const uiLayer = document.getElementById('ui-layer');
+
+        inputField.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                checkAnswer();
+            }
+        });
+
+        function setupLevelQuestions() {
+            if (isExamMode) {
+                questions = fullDatabase.filter(q => 
+                    q.title.includes("COMPLEXA") || 
+                    q.title.includes("PIVOT") || 
+                    q.title.includes("NON-EQUIJOIN") || 
+                    q.title.includes("MATRIU") ||
+                    q.title.includes("UNION COMPATIBILITAT") ||
+                    q.title.includes("MINUS PAÏSOS") ||
+                    q.title.includes("ANY") ||
+                    q.title.includes("TORONTO") ||
+                    q.title.includes("SELF JOIN ABANS") ||
+                    q.title.includes("HAVING MIN")
+                ).slice(0, 10);
+            } else {
+                let start = (currentLevel - 1) * levelSize;
+                let end = start + levelSize;
+                questions = fullDatabase.slice(start, end);
+            }
+        }
+
+        function updateHeaderDots() {
+            const dotsContainer = document.getElementById('progress-dots');
+            dotsContainer.innerHTML = '';
+            for(let i=0; i<questions.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = `dot ${i === currentIndex ? 'active' : (i < currentIndex ? 'completed' : '')}`;
+                dotsContainer.appendChild(dot);
+            }
+        }
+
+        function initLevel() {
+            if (currentIndex >= questions.length) return;
+
+            lives = 3;
+            updateLivesUI();
+            updateHeaderDots();
+            
+            let levelLabel = isExamMode ? `EXAMEN FINAL (${currentIndex + 1}/10)` : `NIVELL ${currentLevel}/${totalLevels} - PREGUNTA ${currentIndex + 1}/${questions.length}`;
+            document.getElementById('level-display').innerText = levelLabel;
+            document.getElementById('question-text').innerText = questions[currentIndex].text;
+            
+            inputField.value = '';
+            inputField.disabled = false;
+            btn.disabled = false;
+            hideToast();
+            
+            tuIndicator.style.bottom = `${baseProgress}%`;
+            document.getElementById('total-score').innerHTML = `${Math.round(baseProgress)} <span>m</span>`;
+        }
+
+        function updateLivesUI() {
+            livesCircle.innerText = lives;
+            if(lives <= 1) livesCircle.classList.add('danger');
+            else livesCircle.classList.remove('danger');
+        }
+
+        function showToast(msg, type) {
+            toast.innerHTML = msg;
+            toast.className = `show-toast toast-${type}`;
+            if(type === 'warning') setTimeout(hideToast, 4000);
+        }
+
+        function hideToast() { toast.className = ''; }
+
+        function toggleModal(show) {
+            document.getElementById('chuleta-modal').classList.toggle('active', show);
+        }
+
+        function toggleFallosModal(show) {
+            document.getElementById('fallo-modal').classList.toggle('active', show);
+        }
+
+        function checkAnswer() {
+            const input = inputField.value.toLowerCase().replace(/\s+/g, ' ');
+            if (input.trim() === '') return;
+
+            const q = questions[currentIndex];
+            let matched = 0;
+            let missingWord = null;
+
+            q.keywords.forEach(kw => {
+                if (input.includes(kw)) {
+                    matched++;
+                } else if (!missingWord) {
+                    missingWord = kw;
+                }
+            });
+
+            const percentCorrect = (matched / q.keywords.length) * 100;
+
+            if (percentCorrect === 100) {
+                hideToast();
+                recordStat(currentIndex + 1, 100, q);
+                triggerFlightSequence(100);
+            } else {
+                lives--;
+                updateLivesUI();
+
+                if (lives > 0) {
+                    showToast(`Pista: Et falta l'element <b>${missingWord.toUpperCase()}</b>. Queden ${lives} intents.`, "warning");
+                } else {
+                    showToast(`Intents esgotats.`, "error");
+                    recordStat(currentIndex + 1, percentCorrect, q);
+                    triggerFlightSequence(percentCorrect);
+                }
+            }
+        }
+
+        function recordStat(num, percent, q) {
+            let statObj = { qNum: num, percent: percent, topic: q.topic, questionObj: q };
+            userStats.push(statObj);
+            if (percent < 100) {
+                levelFailedStats.push(statObj);
+            }
+        }
+
+        function getZoneName(altitude) {
+            if (altitude < 30) return "ÒRBITA TERRESTRE";
+            if (altitude < 70) return "ESTRATOSFERA";
+            if (altitude < 110) return "BORDE EXTERIOR";
+            return "ESPAI PROFUND";
+        }
+
+        function triggerFlightSequence(percentCorrect) {
+            btn.disabled = true;
+            inputField.disabled = true;
+            pendingGain = (percentCorrect / 100) * 10;
+
+            uiLayer.classList.add('hidden');
+            document.getElementById('rocket-fire').setAttribute('opacity', '1');
+
+            const vessel = document.getElementById('vessel-container');
+            const isPerfectLaunch = (percentCorrect === 100 && lives === 3);
+            
+            setTimeout(() => {
+                vessel.classList.add('launching');
+                
+                if (isPerfectLaunch) {
+                    document.getElementById('hyper-focus-bg').classList.add('active');
+                    vessel.classList.add('hyper-launch');
+                }
+
+                baseProgress += pendingGain;
+                document.documentElement.style.setProperty('--altitude', baseProgress);
+                tuIndicator.style.bottom = `${baseProgress}%`;
+                document.getElementById('total-score').innerHTML = `${Math.round(baseProgress)} <span>m</span>`;
+
+                setTimeout(() => {
+                    vessel.classList.remove('launching');
+                    
+                    if (isPerfectLaunch) {
+                        document.getElementById('hyper-focus-bg').classList.remove('active');
+                        vessel.classList.remove('hyper-launch');
+                    }
+                    
+                    document.getElementById('rocket-fire').setAttribute('opacity', '0');
+                    showMilestoneOverlay(percentCorrect);
+                }, 3200);
+
+            }, 500);
+        }
+
+        function showMilestoneOverlay(percentCorrect) {
+            const currentZone = getZoneName(baseProgress);
+            const q = questions[currentIndex];
+            const roundAltitude = Math.round(baseProgress);
+            const gainedMeters = Math.round(pendingGain);
+
+            document.getElementById('zone-title-text').innerText = currentZone;
+            document.getElementById('milestone-subheading-text').innerText = q.title;
+            document.getElementById('milestone-stats-text').innerText = `+${gainedMeters} punts · ${roundAltitude} m més amunt`;
+            
+            if (percentCorrect === 100) {
+                document.getElementById('milestone-quote-text').innerText = "Excel·lent consulta! L'assoliment s'ha registrat perfectament.";
+                document.getElementById('ver-fallo-btn').style.display = 'none';
+            } else {
+                document.getElementById('milestone-quote-text').innerText = `Ha faltat precisió (${Math.round(percentCorrect)}% d'encert). Avançats ${gainedMeters}m.`;
+                document.getElementById('ver-fallo-btn').style.display = 'inline-block';
+            }
+
+            document.getElementById('fallo-sql-code').innerText = q.correct;
+            document.getElementById('fallo-breakdown').innerHTML = q.explanation;
+
+            document.getElementById('milestone-badge-text').innerText = `${currentZone} · ${roundAltitude}`;
+
+            document.getElementById('milestone-overlay').classList.add('active');
+            document.getElementById('milestone-line-container').classList.add('active');
+            document.getElementById('continue-btn-container').classList.add('active');
+        }
+
+        function nextQuestionAfterFlight() {
+            toggleFallosModal(false);
+
+            document.getElementById('milestone-overlay').classList.remove('active');
+            document.getElementById('milestone-line-container').classList.remove('active');
+            document.getElementById('continue-btn-container').classList.remove('active');
+
+            setTimeout(() => {
+                currentIndex++;
+                if(currentIndex >= questions.length) {
+                    showFinalStats();
+                } else {
+                    initLevel();
+                    uiLayer.classList.remove('hidden');
+                }
+            }, 400);
+        }
+
+        function showFinalStats() {
+            const statsOverlay = document.getElementById('final-stats-overlay');
+            const finalAlt = Math.round(baseProgress);
+            document.getElementById('final-alt-display').innerHTML = `${finalAlt}<span style="font-size: 2.5rem; color: var(--cyan-accent); margin-left:10px;">m</span>`;
+            
+            const gradeBox = document.getElementById('grade-container');
+            const examBadge = document.getElementById('exam-tag-header');
+            const nextLvlBtn = document.getElementById('next-level-btn');
+            const examBtn = document.getElementById('start-exam-btn');
+            const retryFailedBtn = document.getElementById('retry-failed-btn');
+
+            if (isExamMode) {
+                examBadge.style.display = 'block';
+                gradeBox.style.display = 'block';
+                document.getElementById('stats-subtitle-text').innerText = "AVALUACIÓ FINAL ACABADA";
+                
+                let examStats = userStats.slice(-10);
+                let sumPercent = examStats.reduce((acc, curr) => acc + curr.percent, 0);
+                let grade = ((sumPercent / (10 * 100)) * 10).toFixed(1);
+                
+                document.getElementById('grade-val').innerText = `${grade} / 10`;
+                const verdict = document.getElementById('grade-verdict');
+                if (grade >= 9) {
+                    verdict.innerText = "EXCEL·LENT - NIVELL ASTRONAUTA SÈNIOR";
+                    verdict.style.color = "var(--success)";
+                } else if (grade >= 5) {
+                    verdict.innerText = "APTE - MISSIÓ COMPLETA AMB ÈXIT";
+                    verdict.style.color = "var(--cyan-accent)";
+                } else {
+                    verdict.innerText = "NO APTE - REQUIEREIX REPASSAR CONCEPTES";
+                    verdict.style.color = "var(--error)";
+                }
+
+                nextLvlBtn.style.display = 'none';
+                examBtn.style.display = 'none';
+            } else {
+                examBadge.style.display = 'none';
+                gradeBox.style.display = 'none';
+                document.getElementById('stats-subtitle-text').innerText = `ANÀLISI DE NIVELL ${currentLevel} COMPLETAT`;
+
+                if (currentLevel < totalLevels) {
+                    nextLvlBtn.style.display = 'inline-block';
+                    examBtn.style.display = 'none';
+                } else {
+                    nextLvlBtn.style.display = 'none';
+                    examBtn.style.display = 'inline-block';
+                }
+            }
+
+            if (levelFailedStats.length > 0) {
+                retryFailedBtn.style.display = 'inline-block';
+            } else {
+                retryFailedBtn.style.display = 'none';
+            }
+
+            let currentSliceStats = userStats.slice(-questions.length);
+            let logHtml = '';
+            currentSliceStats.forEach((stat, idx) => {
+                let dotClass = stat.percent === 100 ? 'success' : 'fail';
+                let heightPercent = Math.max(15, stat.percent);
+                
+                logHtml += `
+                <div class="log-item">
+                    <div class="log-line" style="height: ${heightPercent}%;"></div>
+                    <div class="log-dot ${dotClass}" style="bottom: ${heightPercent}%;"></div>
+                    <div class="log-num">${idx + 1}</div>
+                </div>`;
+            });
+            document.getElementById('flight-log-content').innerHTML = logHtml;
+
+            let skillsHtml = '';
+            const topics = ["Subconsultes", "JOINs", "Funcions de Grup", "Operadors de Conjunt"];
+            
+            topics.forEach(t => {
+                let tStats = userStats.filter(s => s.topic === t);
+                if(tStats.length === 0) return;
+                
+                let avg = tStats.reduce((acc, curr) => acc + curr.percent, 0) / tStats.length;
+                let icon = avg >= 80 ? '🟢' : (avg >= 50 ? '🟠' : '🔴');
+                let color = avg >= 80 ? 'var(--cyan-accent)' : (avg >= 50 ? 'var(--warning)' : 'var(--error)');
+                let feedback = avg >= 80 ? 'Sistemes nominals. Domini segur.' : 
+                              (avg >= 50 ? 'Coneixement parcial. Repassar punts clau.' : 
+                                           'Atenció requerida en aquesta àrea.');
+                
+                skillsHtml += `
+                <div class="skill-row">
+                    <div style="display:flex; align-items:center; gap: 20px;">
+                        <span style="font-size:1.2rem;">${icon}</span>
+                        <span style="color: #fff; font-weight: bold; width: 150px; font-family: 'Inter', sans-serif;">${t.toUpperCase()}</span>
+                        <span style="color: rgba(255,255,255,0.6); font-family: 'Inter', sans-serif;">${feedback}</span>
+                    </div>
+                    <div style="color: ${color}; font-weight: bold; font-size: 1.4rem;">${Math.round(avg)}%</div>
+                </div>`;
+            });
+            document.getElementById('skills-container').innerHTML = skillsHtml;
+
+            statsOverlay.classList.add('active');
+        }
+
+        function retryCurrentLevel() {
+            document.getElementById('final-stats-overlay').classList.remove('active');
+            document.getElementById('ui-layer').classList.remove('hidden');
+            currentIndex = 0;
+            levelFailedStats = [];
+            initLevel();
+        }
+
+        function retryFailedQuestions() {
+            if (levelFailedStats.length === 0) return;
+            questions = levelFailedStats.map(s => s.questionObj);
+            levelFailedStats = [];
+            currentIndex = 0;
+            document.getElementById('final-stats-overlay').classList.remove('active');
+            document.getElementById('ui-layer').classList.remove('hidden');
+            initLevel();
+        }
+
+        function goToNextLevel() {
+            if (currentLevel < totalLevels) {
+                currentLevel++;
+                currentIndex = 0;
+                levelFailedStats = [];
+                setupLevelQuestions();
+                document.getElementById('final-stats-overlay').classList.remove('active');
+                document.getElementById('ui-layer').classList.remove('hidden');
+                initLevel();
+            }
+        }
+
+        function startExamMode() {
+            isExamMode = true;
+            currentIndex = 0;
+            levelFailedStats = [];
+            setupLevelQuestions();
+            document.getElementById('final-stats-overlay').classList.remove('active');
+            document.getElementById('ui-layer').classList.remove('hidden');
+            initLevel();
+        }
+
+        setupLevelQuestions();
+        initLevel();
+    </script>
+</body>
+</html>
